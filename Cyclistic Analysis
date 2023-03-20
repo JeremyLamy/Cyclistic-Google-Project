@@ -1,0 +1,91 @@
+#---------------FINAL ANALYSIS---------------
+
+#----install all needed packages----
+ library(tibble)
+ library(tidyr)
+ library(tidyselect)
+ library(tidyverse)
+ library(hms)
+ library(data.table)
+ library(readxl)
+ library(writexl)
+ library(xlsx)
+ 
+ #----load all original excel files from Jan-Dec 2022----
+Apr22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/Apr22.xlsx")
+Aug22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/Aug22.xlsx")
+Dec22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/Dec22.xlsx")
+ Feb22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/Feb22.xlsx")
+ Jan22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/Jan22.xlsx")
+ Jul22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/Jul22.xlsx")
+ Jun22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/Jun22.xlsx")
+ Mar22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/Mar22.xlsx")
+ May22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/May22.xlsx")
+ Nov22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/Nov22.xlsx")
+ Oct22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/Oct22.xlsx")
+ Sep22 <- read_excel("~/Data Analyst Studies/Trip Data - Unzip/xls format/Sep22.xlsx")
+ 
+ #---check for same column headers--- 
+df_list <- list(Apr22, Aug22, Dec22, Feb22, Jan22, Jul22, Jun22, Mar22, May22, Nov22, Oct22, Sep22)
+
+{
+  all(colnames(df1) == colnames(df2))
+}
+
+result <- reduce(df_list, check_cols)
+
+if(result){
+  print("All data frames have the same columns")
+} else {
+  print("Not all data frames have the same columns")
+}
+[1] "All data frames have the same columns"
+
+#----merge all data frames----
+cyclistic_df <- rbind (Apr22, Aug22, Dec22, Feb22, Jan22, Jul22, Jun22, Mar22, May22, Nov22, Oct22, Sep22)
+
+#-clean up environment----
+remove(Apr22, Aug22, Dec22, Feb22, Jan22, Jul22, Jun22, Mar22, May22, Nov22, Oct22, Sep22)
+remove(df_list)
+
+#duplicate data frame before making changes----
+cyclistic_df_copy <- cyclistic_df
+
+# Remove specific columns from the data frame----
+cyclistic_df <- cyclistic_df %>%
+  select(-ride_id, -start_station_id, -end_station_id, -start_lat, -end_lat, -start_lng, -end_lng)
+# Remove the NA values in the rideable_type column----
+cyclistic_df <- na.omit(cyclistic_df[, c("rideable_type")])
+#remove duplicates
+cyclistic_df <- distinct(cyclistic_df)
+#remove where ride_length is 0 or negative
+cyclistic_df <- cyclistic_df[!(cyclistic_df$ride_length <=0),]
+
+#calculate ride length by taking the difference of ended_at time from started_at time and converted it to minutes----
+cyclistic_df$ride_length <- difftime(cyclistic_df$ended_at, cyclistic_df$started_at, units = "mins")
+
+#columns needed for: day of week, month, day, year, time, hour----
+# Add a new column for the day of the week
+cyclistic_df$day_of_week <- weekdays(as.Date(cyclistic_df$started_at))
+
+# Add a new column for the month
+cyclistic_df$month <- month.name[as.integer(format(as.Date(cyclistic_df$started_at), "%m"))]
+
+#Create time of day column 
+# Convert 'started_at' column to POSIXct format
+cyclistic_df$started_at <- as.POSIXct(cyclistic_df$started_at, format = "%Y-%m-%d %H:%M:%S")
+
+#Create a new column 'time_of_day' based on the hour of the day
+cyclistic_df$time_of_day <- ifelse(hour(cyclistic_df$started_at) >= 5 & hour(cyclistic_df$started_at) < 12, "Morning",
+                                   ifelse(hour(cyclistic_df$started_at) >= 12 & hour(cyclistic_df$started_at) < 17, "Afternoon",
+                                          ifelse(hour(cyclistic_df$started_at) >= 17 & hour(cyclistic_df$started_at) < 21, "Evening",
+                                                 "Night")))
+#Add seasons column
+cyclistic_df$seasons <- ifelse(cyclistic_df$month %in% c("December", "January", "February"), "Winter", 
+                               ifelse(cyclistic_df$month %in% c("March", "April", "May"), "Spring", 
+                                      ifelse(cyclistic_df$month %in% c("June", "July", "August"), "Summer", 
+                                             ifelse(cyclistic_df$month %in% c("September", "October", "November"), "Fall", NA)))
+
+
+
+
